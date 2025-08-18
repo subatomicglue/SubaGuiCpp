@@ -1,0 +1,63 @@
+
+# cpp portable 2d graphics
+
+a lean, C++17, quad-and-texture graphics layer that runs:
+
+ - standalone (opens its own window)
+ - inside VST3, AU (macOS), and CLAP plugin editors
+ - on Windows, macOS (Apple Silicon + Intel), Linux/Raspberry Pi
+ - GPU-accelerated with one graphics backend
+
+
+## Chosen stack (minimal, future-proof)
+
+ - **Vulkan 1.2** everywhere.
+   - **macOS** via **MoltenVK** (Vulkan over Metal).
+   - **Windows/Linux/Raspberry Pi** with the standard Vulkan loader/ICD.
+ - **No giant windowing framework.**
+   - We implement tiny native windows for Win32 and Cocoa.
+   - For Linux/RPi you can pick: X11 (tiny Xlib shim) *or* Wayland; to start quickly, an optional **GLFW** path for standalone only (not in plugins) is fine.
+ - **Single draw primitive**: batched textured quads.
+ - **Dependencies (small)**: Vulkan SDK (loader + headers), **stb_image.h** (textures), optional **volk** (Vulkan function loader), optional **VMA** (allocator). Shaders precompiled to SPIR-V at build time (glslangValidator or shaderc), so no runtime compiler dependency.
+
+## project layout
+
+```
+/gfxkit
+  /cmake/
+  /external/
+    stb/
+    volk/         (optional)
+    VMA/          (optional)
+  /src/
+    /core/        (platform-agnostic)
+      device.hpp, device.cpp
+      swapchain.hpp, swapchain.cpp
+      buffer.hpp, image.hpp, sampler.hpp
+      pipeline.hpp
+      renderer.hpp, renderer.cpp         // batched-textured-quad renderer
+      quad_batch.hpp, quad_batch.cpp
+      shaders/                           // *.vert *.frag + CMake to make SPIR-V
+    /platform/
+      /win32/ window_win32.hpp/.cpp      // Standalone window + surface
+      /cocoa/ window_cocoa.mm            // Standalone NSWindow + CAMetalLayer-backed VkSurface via MVK
+      /x11/   window_x11.cpp             // or wayland/ if preferred
+      vk_surface_from_native.hpp/.cpp    // (HWND, NSView*, X11 Window) -> VkSurfaceKHR
+    /plugin/
+      /vst3/
+        CMakeLists.txt
+        vst3_entry.cpp
+        MyProcessor.cpp/.hpp
+        MyController.cpp/.hpp
+        MyEditorView.cpp/.hpp            // wraps host window and calls Renderer
+      /au/
+        au_component.mm                  // AUv2 Cocoa view (NSView*)
+      /clap/
+        clap_entry.c
+        clap_gui.cpp/.hpp                // implements clap_gui and uses native parent
+  /examples/
+    /standalone_app/ main.cpp
+  CMakeLists.txt
+```
+
+

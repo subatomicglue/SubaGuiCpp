@@ -1,0 +1,25 @@
+find_package(VulkanLoader REQUIRED)
+find_package(VulkanHeaders REQUIRED)
+if(APPLE)
+    find_package(moltenvk REQUIRED)
+    find_library(COCOA_FRAMEWORK Cocoa)
+endif()
+
+set(SOURCE_FILES
+    window_cocoa.mm
+    vk_surface_from_native.mm
+    vk_surface_from_native.cpp
+)
+add_library(platform STATIC
+    ${SOURCE_FILES}
+)
+foreach(file ${SOURCE_FILES})
+    set_source_files_properties(${file} PROPERTIES COMPILE_FLAGS "-g")
+endforeach()
+
+target_link_libraries(platform PUBLIC Vulkan::Headers)
+target_link_libraries(platform PUBLIC Vulkan::Loader)
+
+if(APPLE)
+    target_link_libraries(platform PUBLIC moltenvk::moltenvk ${COCOA_FRAMEWORK})
+endif()

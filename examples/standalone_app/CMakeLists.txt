@@ -1,0 +1,79 @@
+
+set(SOURCE_FILES
+    main.cpp
+)
+add_executable(standalone_app
+    ${SOURCE_FILES}
+)
+foreach(file ${SOURCE_FILES})
+    set_source_files_properties(${file} PROPERTIES COMPILE_FLAGS "-g")
+endforeach()
+
+find_package(VulkanLoader REQUIRED)
+find_package(VulkanHeaders REQUIRED)
+if(APPLE)
+    find_package(moltenvk REQUIRED)
+    find_library(COCOA_FRAMEWORK Cocoa)
+endif()
+# Get the library directory for MoltenVK
+if(APPLE)
+  # Use the find_library() to find if it's available
+  find_library(MOLTENVK_LIBRARY NAMES MoltenVK PATHS ${CMAKE_FIND_LIBRARY_HINTS} REQUIRED)
+
+  # Print the directory where the MoltenVK libraries are located
+  if(MOLTENVK_LIBRARY)
+      get_filename_component(MOLTENVK_LIB_DIR ${MOLTENVK_LIBRARY} DIRECTORY)
+      message(STATUS "MoltenVK library directory: ${MOLTENVK_LIB_DIR}")
+
+      # Write the MOLTENVK_LIB_DIR to a shell script file
+      set(SOURCEME_SH "${CMAKE_CURRENT_BINARY_DIR}/sourceme.sh")
+      file(WRITE ${SOURCEME_SH} "#!/bin/bash\n")
+      file(APPEND ${SOURCEME_SH} "export VK_ICD_FILENAMES=\"${MOLTENVK_LIB_DIR}/MoltenVK_icd.json\"\n")
+      file(APPEND ${SOURCEME_SH} "export VK_LAYER_PATH=\"${MOLTENVK_LIB_DIR}\"\n")
+
+      # Make the script executable (optional)
+      #file(CHANGE_MODE "sourceme.sh" OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+  else()
+      message(WARNING "MoltenVK library not found!")
+  endif()
+endif()
+###########################
+
+# Link against core and platform
+target_link_libraries(standalone_app PRIVATE core platform)
+target_link_libraries(standalone_app PRIVATE Vulkan::Headers)
+target_link_libraries(standalone_app PRIVATE Vulkan::Loader)
+
+target_include_directories(standalone_app PRIVATE ../../src/platform)
+target_include_directories(standalone_app PRIVATE ../../src/core)
+
+if(APPLE)
+    target_link_libraries(standalone_app PRIVATE moltenvk::moltenvk ${COCOA_FRAMEWORK})
+endif()
+target_include_directories(standalone_app PRIVATE ${CONAN_MOLTENVK_INCLUDE_DIRS})
+
+
+
+###########################
+
+add_executable(molten_app
+    molten.mm   # Your app entry point
+)
+
+# Link against core and platform
+target_link_libraries(molten_app PRIVATE core platform)
+target_link_libraries(molten_app PRIVATE Vulkan::Headers)
+target_link_libraries(molten_app PRIVATE Vulkan::Loader)
+
+target_include_directories(molten_app PRIVATE ../../src/platform)
+target_include_directories(molten_app PRIVATE ../../src/core)
+
+if(APPLE)
+    target_link_libraries(molten_app PRIVATE moltenvk::moltenvk ${COCOA_FRAMEWORK})
+endif()
+
+target_include_directories(molten_app PRIVATE ${CONAN_MOLTENVK_INCLUDE_DIRS})
+
+
+
+
