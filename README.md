@@ -1,7 +1,7 @@
 
 # cpp portable 2d graphics
 
-a lean, C++17, quad-and-texture graphics layer that runs:
+a lean, C++17, 2D windows + quad-and-texture graphics layer for audio synthesizer GUIs (knobs, lights, buttons, text), audio plugins (like vst, au, clap), and audio devices with touchscreens (raspberry pi):
 
  - standalone (opens its own window)
  - inside VST3, AU (macOS), and CLAP plugin editors
@@ -9,7 +9,7 @@ a lean, C++17, quad-and-texture graphics layer that runs:
  - GPU-accelerated with one graphics backend
 
 
-## Chosen stack (minimal, future-proof)
+## tech stack
 
  - **Vulkan 1.2** everywhere.
    - **macOS** via **MoltenVK** (Vulkan over Metal).
