@@ -1,5 +1,5 @@
 
-# 2d graphics for audio apps and plugins
+# Subatomic Gui - 2d graphics for audio apps and plugins
 
 a lean, C++17, 2D windows + quad-and-texture graphics layer for audio synthesizer GUIs (knobs, lights, buttons, text), audio plugins (like vst, au, clap), and audio devices with touchscreens (raspberry pi):
 
