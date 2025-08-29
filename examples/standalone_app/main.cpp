@@ -59,6 +59,83 @@ struct Widget {
     Quad quad;
 };
 
+#include <nlohmann/json.hpp>
+#include <fstream>
+
+using json = nlohmann::json;
+
+std::vector<Widget*> widgets;
+
+void loadGUI(Renderer& renderer, const std::string& filename) {
+    std::ifstream f(filename);
+    if (!f.is_open()) {
+        printf("ERROR: could not open file '%s'\n", filename.c_str());
+        return;
+    }
+
+    json j;
+    try {
+        f >> j;
+    } catch (const nlohmann::json::parse_error& e) {
+        // e.byte gives the position in the input where the error occurred
+        std::string line_context;
+        try {
+            f.clear(); f.seekg(0);
+            std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+            size_t pos = e.byte;
+            size_t start = (pos > 20) ? pos - 20 : 0;
+            size_t end = std::min(content.size(), pos + 20);
+            line_context = content.substr(start, end - start);
+        } catch (...) {
+            line_context = "(could not extract context)";
+        }
+
+        printf("JSON PARSE ERROR: %s\n at byte %zu, context: '%s'\n", e.what(), e.byte, line_context.c_str());
+        exit(-1);
+        return;
+    } catch (const std::exception& e) {
+        printf("UNKNOWN ERROR parsing JSON: %s\n", e.what());
+        exit(-1);
+        return;
+    }
+
+    for (size_t i = 0; i < j.at("controls").size(); ++i) {
+        auto& ctrl = j.at("controls")[i];
+
+        try {
+            std::string type = ctrl.at("type");
+            int x = ctrl.at("pos").at(0);
+            int y = ctrl.at("pos").at(1);
+            std::string texture = ctrl.at("texture"); // this might throw
+            std::string label = ctrl.value("label", "");
+
+            if (type == "background") {
+                widgets.push_back(new Widget(renderer, texture, x, y));
+            } else if (type == "knob") {
+                widgets.push_back(new Widget(renderer, texture, x, y));
+            } else if (type == "button") {
+                widgets.push_back(new Widget(renderer, texture, x, y));
+            } else if (type == "display") {
+                widgets.push_back(new Widget(renderer, texture, x, y));
+            } else if (type == "splash") {
+                widgets.push_back(new Widget(renderer, texture, x, y));
+            } else if (type == "kickButton") {
+                widgets.push_back(new Widget(renderer, texture, x, y));
+            } else {
+                printf("ERROR: unknown widget type: %s\n", type.c_str());
+                widgets.push_back(new Widget(renderer, texture, x, y));
+            }
+        } catch (const nlohmann::json::exception& e) {
+            std::string typeInfo = ctrl.value("type", "unknown");
+            std::string labelInfo = ctrl.value("label", "");
+            printf("JSON ERROR processing widget #%zu (type='%s', label='%s'): %s\n",
+                i, typeInfo.c_str(), labelInfo.c_str(), e.what());
+        }
+    }
+}
+
+
+
 int main() {
     PlatformWindow win(800,600,"gfxkit");
     Renderer renderer(win.nativeParent(),800,600);
@@ -66,17 +143,19 @@ int main() {
     // Create a solid white texture
     // unsigned int texId = renderer.createSolidTexture(255,0,0,255);
 
-    Widget widgets[] = {
-        { renderer, "bmp00128.png", 100, 100 },
-        { renderer, "bmp00147.png", 200, 400 },
-        { renderer, "bmp00158.png", 300, 500 },
-    };
+    // Widget widgets[] = {
+    //     { renderer, "bmp00128.png", 100, 100 },
+    //     { renderer, "bmp00147.png", 200, 400 },
+    //     { renderer, "bmp00158.png", 300, 500 },
+    // };
+
+    loadGUI( renderer, "def.json" );
 
     while(true) {
         win.poll();
 
-        for (auto& w : widgets) {
-            renderer.addQuad(w.quad, w.texId);
+        for (auto* w : widgets) {
+            renderer.addQuad(w->quad, w->texId);
         }
         renderer.drawFrame();
     }

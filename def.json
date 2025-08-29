@@ -1,0 +1,373 @@
+{
+  "colors": {
+    "textBG": [41, 29, 56, 255],
+    "grey": [128, 128, 128, 255],
+    "darkOrange": [255, 100, 0, 255],
+    "babyBlue": [173, 216, 230, 255]
+  },
+  "controls": [
+    {
+      "type": "background",
+      "param": "kBackgroundId",
+      "width": 800,
+      "height": 600,
+      "pos": [0,0],
+      "texture": "bmp00128.png"
+    },
+    {
+      "type": "knob",
+      "param": "kUnisonDetune",
+      "label": "Unison Detune",
+      "pos": [62, 48],
+      "texture": "bmp00131.png"
+    },
+    {
+      "type": "button",
+      "param": "kUseUnisonNice",
+      "label": "Clean Unison",
+      "pos": [68, 51],
+      "texture": "bmp00141.png"
+    },
+    {
+      "type": "button",
+      "param": "kUseUnison",
+      "label": "Use Unison",
+      "pos": [68, 78],
+      "texture": "bmp00148.png"
+    },
+    {
+      "type": "knob",
+      "param": "kSlideTime",
+      "label": "Slide Time",
+      "pos": [62, 96],
+      "texture": "bmp00133.png"
+    },
+    {
+      "type": "knob",
+      "param": "kMaxPoly",
+      "label": "Max Poly",
+      "pos": [101, 96],
+      "texture": "bmp00131.png"
+    },
+    {
+      "type": "display",
+      "param": "polydisplay",
+      "label": "Poly Display",
+      "pos": [109, 119],
+      "size": [25, 14],
+      "text_color": "grey",
+      "bg_color": "textBG",
+      "formatter": "intToString_unsafe",
+      "min": 0,
+      "max": 999
+    },
+    {
+      "type": "display",
+      "param": "kMaxPoly",
+      "label": "Max Poly",
+      "pos": [109, 133],
+      "size": [25, 14],
+      "text_color": "grey",
+      "formatter": "Range<1,10>"
+    },
+    {
+      "type": "button",
+      "param": "kUseLegato",
+      "label": "Use Legato",
+      "pos": [68, 138],
+      "texture": "bmp00142.png"
+    },
+    {
+      "type": "knob",
+      "param": "kOsc1WaveType",
+      "label": "Osc1 Type",
+      "pos": [173, 47],
+      "texture": "bmp00139.png"
+    },
+    {
+      "type": "display",
+      "param": "kOsc1WaveType",
+      "label": "Osc1 Type Display",
+      "pos": [188, 87],
+      "size": [25, 14],
+      "text_color": "grey",
+      "formatter": "valueToShapeString_unsafe"
+    },
+    {
+      "type": "knob",
+      "param": "kOsc2WaveType",
+      "label": "Osc2 Type",
+      "pos": [222, 47],
+      "texture": "bmp00137.png"
+    },
+    {
+      "type": "display",
+      "param": "kOsc2WaveType",
+      "label": "Osc2 Type Display",
+      "pos": [237, 87],
+      "size": [25, 14],
+      "text_color": "grey",
+      "formatter": "valueToShapeString_unsafe"
+    },
+    {
+      "type": "button",
+      "param": "kUseOscSync1",
+      "label": "Osc Sync1",
+      "pos": [174, 140],
+      "texture": "bmp00150.png"
+    },
+    {
+      "type": "button",
+      "param": "kUseOscSync2",
+      "label": "Osc Sync2",
+      "pos": [254, 140],
+      "texture": "bmp00150.png"
+    },
+    {
+      "type": "button",
+      "param": "kSyncOnTrigger",
+      "label": "Sync On Trigger",
+      "pos": [214, 73],
+      "texture": "bmp00151.png"
+    },
+    {
+      "type": "knob",
+      "param": "kOsc1Detune",
+      "label": "Osc1 Detune",
+      "pos": [173, 105],
+      "texture": "bmp00131.png"
+    },
+    {
+      "type": "knob",
+      "param": "kOsc2Detune",
+      "label": "Osc2 Detune",
+      "pos": [222, 105],
+      "texture": "bmp00131.png"
+    },
+    {
+      "type": "button",
+      "param": "kOsc1Invert",
+      "label": "Osc1 Invert",
+      "pos": [179, 147],
+      "texture": "bmp00141.png"
+    },
+    {
+      "type": "button",
+      "param": "kOsc2Invert",
+      "label": "Osc2 Invert",
+      "pos": [228, 147],
+      "texture": "bmp00142.png"
+    },
+    {
+      "type": "knob",
+      "param": "kOscMix",
+      "label": "Osc Mix",
+      "pos": [222, 186],
+      "texture": "bmp00132.png"
+    },
+    {
+      "type": "knob",
+      "param": "kSubOscLevel",
+      "label": "Subosc Level",
+      "pos": [173, 186],
+      "texture": "bmp00131.png"
+    },
+    {
+      "type": "button",
+      "param": "kSubOscOctave",
+      "label": "Subosc Octave",
+      "pos": [204, 226],
+      "texture": "bmp00152.png"
+    },
+    {
+      "type": "kickButton",
+      "param": "kSyncNow1",
+      "label": "Sync Now 1",
+      "pos": [204, 235],
+      "texture": "bmp00153.png"
+    },
+    {
+      "type": "kickButton",
+      "param": "kSyncNow2",
+      "label": "Sync Now 2",
+      "pos": [224, 235],
+      "texture": "bmp00152.png"
+    },
+    {
+      "type": "listbox",
+      "param": "kPresetListBox",
+      "pos": [25, 18],
+      "size": [200, 300],
+      "bg_texture": "bmp00155.png",
+      "clicked_texture": "bmp00156.png"
+    },
+    {
+      "type": "kickButton",
+      "param": "kPresetLoad",
+      "label": "Load Preset",
+      "pos": [228, 16],
+      "texture": "bmp00159.png"
+    },
+    {
+      "type": "kickButton",
+      "param": "kPresetSave",
+      "label": "Save Preset",
+      "pos": [228, 24],
+      "texture": "bmp00160.png"
+    },
+    {
+      "type": "knob",
+      "param": "kOsc1Attack",
+      "label": "Amplitude Attack",
+      "pos": [268, 33],
+      "texture": "bmp00134.png"
+    },
+    {
+      "type": "knob",
+      "param": "kOsc1Decay",
+      "label": "Amplitude Decay",
+      "pos": [307, 33],
+      "texture": "bmp00131.png"
+    },
+    {
+      "type": "knob",
+      "param": "kOsc1Sustain",
+      "label": "Amplitude Sustain",
+      "pos": [346, 33],
+      "texture": "bmp00131.png"
+    },
+    {
+      "type": "knob",
+      "param": "kOsc1Release",
+      "label": "Amplitude Release",
+      "pos": [385, 33],
+      "texture": "bmp00131.png"
+    },
+    {
+      "type": "knob",
+      "param": "kOutputLevel",
+      "label": "Level",
+      "pos": [442, 33],
+      "texture": "bmp00154.png"
+    },
+    {
+      "type": "knob",
+      "param": "kFilt1Cutoff",
+      "label": "Filter Cutoff",
+      "pos": [268, 113],
+      "texture": "bmp00131.png"
+    },
+    {
+      "type": "knob",
+      "param": "kRes",
+      "label": "Resonance",
+      "pos": [307, 113],
+      "texture": "bmp00131.png"
+    },
+    {
+      "type": "button",
+      "param": "kKeyboardTracking",
+      "label": "Keyboard Tracking",
+      "pos": [346, 133],
+      "texture": "bmp00148.png"
+    },
+    {
+      "type": "knob",
+      "param": "kGain",
+      "label": "Distortion Gain",
+      "pos": [442, 113],
+      "texture": "bmp00131.png"
+    },
+    {
+      "type": "knob",
+      "param": "kFilt2Cutoff",
+      "label": "Distortion Mix",
+      "pos": [385, 113],
+      "texture": "bmp00131.png"
+    },
+    {
+      "type": "button",
+      "param": "kDistortionType",
+      "label": "Distortion Type",
+      "pos": [442, 133],
+      "texture": "bmp00148.png"
+    },
+    {
+      "type": "knob",
+      "param": "kFilt1Attack",
+      "label": "Filter Attack",
+      "pos": [268, 156],
+      "texture": "bmp00134.png"
+    },
+    {
+      "type": "knob",
+      "param": "kFilt1Decay",
+      "label": "Filter Decay",
+      "pos": [307, 156],
+      "texture": "bmp00131.png"
+    },
+    {
+      "type": "knob",
+      "param": "kFilt1Sustain",
+      "label": "Filter Sustain",
+      "pos": [346, 156],
+      "texture": "bmp00131.png"
+    },
+    {
+      "type": "knob",
+      "param": "kFilt1Release",
+      "label": "Filter Release",
+      "pos": [385, 156],
+      "texture": "bmp00131.png"
+    },
+    {
+      "type": "knob",
+      "param": "kFilterEnvAmount",
+      "label": "Filter Env Amount",
+      "pos": [442, 156],
+      "texture": "bmp00131.png"
+    },
+    {
+      "type": "button",
+      "param": "kUseFilterEnvVelocity",
+      "label": "Use Filter Env Velocity",
+      "pos": [445, 176],
+      "texture": "bmp00142.png"
+    },
+    {
+      "type": "button",
+      "param": "kUseExp",
+      "label": "Use Exponential",
+      "pos": [341, 131],
+      "texture": "bmp00142.png"
+    },
+    {
+      "type": "label",
+      "param": "versionLabel",
+      "text": "gVersionStr",
+      "pos": [500, 245],
+      "size": [400, 15],
+      "color": [100, 100, 100, 255],
+      "align": "left",
+      "transparent": true
+    },
+    {
+      "type": "splash",
+      "param": "kGuiSplashScreen1",
+      "label": "Splash Screen 1",
+      "pos": [0, 210],
+      "size": [163, 259],
+      "texture": "bmp00143.png",
+      "timeout": 230
+    },
+    {
+      "type": "splash",
+      "param": "kGuiSplashScreen2",
+      "label": "Splash Screen 2",
+      "pos": [0, 159],
+      "size": [54, 180],
+      "texture": "bmp00143.png",
+      "timeout": 230
+    }
+  ]
+}
