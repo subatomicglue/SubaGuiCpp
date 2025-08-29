@@ -1,26 +1,42 @@
-find_package(VulkanLoader REQUIRED)
-find_package(VulkanHeaders REQUIRED)
+if (USE_VULKAN)
+    find_package(VulkanLoader REQUIRED)
+    find_package(VulkanHeaders REQUIRED)
+    if(APPLE)
+        find_package(moltenvk REQUIRED)
+    endif()
+endif()
+if (USE_OPENGL)
+    find_package(OpenGL REQUIRED)
+endif()
 if(APPLE)
-    find_package(moltenvk REQUIRED)
     find_library(COCOA_FRAMEWORK Cocoa)
 endif()
 
-set(SOURCE_FILES
-    renderer.cpp
-)
+set(SOURCE_FILES)
+if (USE_VULKAN)
+    list(APPEND SOURCE_FILES renderer-vk.cpp)
+endif()
+if (USE_OPENGL)
+    list(APPEND SOURCE_FILES renderer-ogl.cpp)
+endif()
+
 add_library(core STATIC
     ${SOURCE_FILES}
 )
 foreach(file ${SOURCE_FILES})
     set_source_files_properties(${file} PROPERTIES COMPILE_FLAGS "-g")
 endforeach()
-
 target_include_directories(core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(core PRIVATE Vulkan::Headers Vulkan::Loader )
-
 target_link_libraries(core PUBLIC platform)
 target_include_directories(core PRIVATE ../platform)
 
-if(APPLE)
-    target_link_libraries(core PUBLIC moltenvk::moltenvk ${COCOA_FRAMEWORK})
+if (USE_VULKAN)
+    target_link_libraries(core PRIVATE Vulkan::Headers Vulkan::Loader )
+    if(APPLE)
+        target_link_libraries(core PUBLIC moltenvk::moltenvk ${COCOA_FRAMEWORK})
+    endif()
+endif()
+if (USE_OPENGL)
+    target_compile_definitions(core PRIVATE GL_SILENCE_DEPRECATION)
+    target_link_libraries(core PRIVATE OpenGL::GL ${COCOA_FRAMEWORK})
 endif()

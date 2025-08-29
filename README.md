@@ -61,3 +61,7 @@ a lean, C++17, 2D windows + quad-and-texture graphics layer for audio synthesize
 ```
 
 
+## install
+```
+brew install conan
+```

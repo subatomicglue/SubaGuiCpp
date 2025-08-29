@@ -1,6 +1,16 @@
 #import <Cocoa/Cocoa.h>
-#import <QuartzCore/CAMetalLayer.h>
-#include "window_cocoa.h"
+#import <QuartzCore/CAMetalLayer.h> // for VK only
+#include "PlatformWindow_cocoa.h"
+
+#ifdef USE_VULKAN
+#include <vulkan/vulkan.h>
+#include "NativeParent_vk.h"
+#endif
+
+#ifdef USE_OPENGL
+#include "NativeParent_gl.h"
+#endif
+
 
 @interface GfxWindowDelegate : NSObject <NSWindowDelegate>
 @end
@@ -29,8 +39,13 @@ PlatformWindow::PlatformWindow(int w, int h, const char* title) {
 
     contentView = [window contentView];
     if (contentView == nil) printf( "ERROR: contentview is nil\n");
+
+#if USE_VULKAN
     contentView.wantsLayer = YES;
     contentView.layer = [CAMetalLayer layer]; // MoltenVK needs this
+#elif USE_OPENGL
+    contentView.wantsLayer = NO;
+#endif
 
     GfxWindowDelegate* del = [[GfxWindowDelegate alloc] init];
     [window setDelegate:del];
@@ -57,11 +72,9 @@ void* PlatformWindow::nsView() {
     return (void*)contentView;
 }
 
-#include <vulkan/vulkan.h>
-#include "vk_surface_from_native.h"
-
 NativeParent& PlatformWindow::nativeParent() {
     static NativeParent np;   // static so we can return a reference
     np.nsView = (void*)contentView;
+    np.nsWindow = (void*)window;
     return np;
 }

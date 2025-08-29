@@ -1,13 +1,14 @@
 #include "renderer.h"
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_macos.h>
-#include "vk_surface_from_native.h"
+#include "NativeParent_vk.h"
 #include <stdexcept>
 #include <array>
 #include <cstdio>
+#include <vector>
 
 
-struct vk_pimpl {
+struct Impl {
     VkInstance instance = VK_NULL_HANDLE;
     VkSurfaceKHR surface = VK_NULL_HANDLE;
     VkPhysicalDevice phys = VK_NULL_HANDLE;
@@ -23,6 +24,13 @@ struct vk_pimpl {
     VkPipeline graphicsPipeline;
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
+
+    void createRenderPass();
+    void createFramebuffer(int w, int h);
+    void createSwapchain(int w, int h);
+    void createCmdBuffer();
+    void createGraphicsPipeline();
+    void createVertexBuffer();
 };
 
 struct Vertex { float pos[2]; float uv[2]; };
@@ -154,10 +162,14 @@ static void logAvailableSurfaceFormats(VkPhysicalDevice phys, VkSurfaceKHR surfa
     }
 }
 
-Renderer::Renderer(NativeParent& np, int w, int h) {
-  try {
-    vk = new vk_pimpl;
+Renderer::Renderer() : impl( new Impl() ) {}
 
+Renderer::Renderer(NativeParent& np, int w, int h) : Renderer() {
+    this->init( np, w, h );
+}
+
+void Renderer::init(NativeParent& np, int w, int h) {
+  try {
     printf("=== Vulkan Renderer Init ===\n");
 
     // 1. Log extensions before creating instance
@@ -206,7 +218,7 @@ Renderer::Renderer(NativeParent& np, int w, int h) {
         ici.enabledLayerCount = 0;
     }
 
-    VkResult res = vkCreateInstance(&ici, nullptr, &vk->instance);
+    VkResult res = vkCreateInstance(&ici, nullptr, &impl->instance);
     if (res != VK_SUCCESS) {
         printf("vkCreateInstance failed with VkResult = %d = %s\n", res, getVulkanResultString(res));
         VK_CHECK( "vkCreateInstance", res );
@@ -215,7 +227,7 @@ Renderer::Renderer(NativeParent& np, int w, int h) {
 
     // 3. Surface
     try {
-        vk->surface = makeSurface(vk->instance, np);
+        impl->surface = makeSurface(impl->instance, np);
         printf("MoltenVK surface created successfully\n");
     } catch (const std::runtime_error& e) {
         printf("makeSurface failed: %s\n", e.what());
@@ -224,20 +236,20 @@ Renderer::Renderer(NativeParent& np, int w, int h) {
 
     // 4. Physical device
     uint32_t count = 0;
-    res = vkEnumeratePhysicalDevices(vk->instance, &count, nullptr);
+    res = vkEnumeratePhysicalDevices(impl->instance, &count, nullptr);
     if (res != VK_SUCCESS || count == 0) {
         printf("No Vulkan physical devices found (VkResult=%d, count=%d)\n", res, count);
         throw std::runtime_error("Failed to find physical device");
     }
 
     std::vector<VkPhysicalDevice> gpus(count);
-    res = vkEnumeratePhysicalDevices(vk->instance, &count, gpus.data());
+    res = vkEnumeratePhysicalDevices(impl->instance, &count, gpus.data());
     if (res != VK_SUCCESS) {
         printf("vkEnumeratePhysicalDevices failed with VkResult=%d\n", res);
         throw std::runtime_error("Failed to enumerate physical devices");
     }
 
-    vk->phys = gpus[0];
+    impl->phys = gpus[0];
     printf("Using first physical device\n");
 
     // 5. Logical device + queue
@@ -253,33 +265,33 @@ Renderer::Renderer(NativeParent& np, int w, int h) {
     dci.ppEnabledExtensionNames = dc_exts;
     dci.enabledExtensionCount = 1;
 
-    res = vkCreateDevice(vk->phys, &dci, nullptr, &vk->device);
+    res = vkCreateDevice(impl->phys, &dci, nullptr, &impl->device);
     if (res != VK_SUCCESS) {
         printf("vkCreateDevice failed with VkResult=%d\n", res);
         throw std::runtime_error("vkCreateDevice failed");
     }
-    vkGetDeviceQueue(vk->device, 0, 0, &vk->queue);
+    vkGetDeviceQueue(impl->device, 0, 0, &impl->queue);
     printf("Logical device and queue created successfully\n");
 
     // Create Swapchain
-    createSwapchain(w, h);
+    impl->createSwapchain(w, h);
 
     // Create Render Pass
-    createRenderPass();
+    impl->createRenderPass();
     
     // Create Framebuffer
-    createFramebuffer(w, h);
+    impl->createFramebuffer(w, h);
 
-    createCmdBuffer();
+    impl->createCmdBuffer();
 
-    createVertexBuffer();
+    impl->createVertexBuffer();
 
-    if (vk->renderPass == VK_NULL_HANDLE) {
+    if (impl->renderPass == VK_NULL_HANDLE) {
         printf("Error: Render pass is not valid.\n");
         throw std::runtime_error("Invalid render pass");
     }
 
-    if (vk->framebuffer == VK_NULL_HANDLE) {
+    if (impl->framebuffer == VK_NULL_HANDLE) {
         printf("Error: Framebuffer is not valid.\n");
         throw std::runtime_error("Invalid framebuffer");
     }
@@ -292,12 +304,12 @@ Renderer::Renderer(NativeParent& np, int w, int h) {
 }
 
 
-void Renderer::createSwapchain(int w, int h) {
-    logAvailableSurfaceFormats( vk->phys, vk->surface);
+void Impl::createSwapchain(int w, int h) {
+    logAvailableSurfaceFormats( phys, surface);
 
 
     VkSurfaceCapabilitiesKHR capabilities;
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vk->phys, vk->surface, &capabilities);
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(phys, surface, &capabilities);
     if(capabilities.minImageCount > capabilities.maxImageCount) {
         capabilities.minImageCount = capabilities.maxImageCount; // Adjust if needed
         printf( "BAD?   capabilities.minImageCount > capabilities.maxImageCount (%d > %d)\n", capabilities.minImageCount, capabilities.maxImageCount );
@@ -306,9 +318,9 @@ void Renderer::createSwapchain(int w, int h) {
 
     // select a surface format
     uint32_t formatCount;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(vk->phys, vk->surface, &formatCount, nullptr);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(phys, surface, &formatCount, nullptr);
     std::vector<VkSurfaceFormatKHR> surfaceFormats(formatCount);
-    vkGetPhysicalDeviceSurfaceFormatsKHR(vk->phys, vk->surface, &formatCount, surfaceFormats.data());
+    vkGetPhysicalDeviceSurfaceFormatsKHR(phys, surface, &formatCount, surfaceFormats.data());
     VkSurfaceFormatKHR surfaceFormat = {};
     // Check available formats
     for (const auto& format : surfaceFormats) {
@@ -331,8 +343,8 @@ void Renderer::createSwapchain(int w, int h) {
     // 6. Swapchain
     VkSwapchainCreateInfoKHR sci = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
     sci.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    sci.surface = vk->surface;
-    if (vk->surface == VK_NULL_HANDLE) {
+    sci.surface = surface;
+    if (surface == VK_NULL_HANDLE) {
         printf("Error: Vulkan surface is not valid.\n");
         throw std::runtime_error("Invalid surface");
     }
@@ -361,7 +373,7 @@ void Renderer::createSwapchain(int w, int h) {
 
     // Log swapchain parameters
     printf("Creating Swapchain with the following parameters:\n");
-    printf(" Surface: %p\n", vk->surface); // Log the surface pointer
+    printf(" Surface: %p\n", surface); // Log the surface pointer
     printf(" Min Image Count: %d\n", sci.minImageCount);
     printf(" Image Format: %d\n", sci.imageFormat);
     printf(" Color Space: %d\n", sci.imageColorSpace);
@@ -374,7 +386,7 @@ void Renderer::createSwapchain(int w, int h) {
     }
 
     printf( "...about to call vkCreateSwapchainKHR...\n");
-    VkResult res = vkCreateSwapchainKHR(vk->device, &sci, nullptr, &vk->swapchain);
+    VkResult res = vkCreateSwapchainKHR(device, &sci, nullptr, &swapchain);
     printf( "...after call to vkCreateSwapchainKHR...\n");
     if (res != VK_SUCCESS) {
         printf("vkCreateSwapchainKHR failed with VkResult = %d = %s\n", res, getVulkanResultString( res ) );
@@ -383,7 +395,7 @@ void Renderer::createSwapchain(int w, int h) {
     printf("Swapchain created successfully\n");
 }
 
-void Renderer::createRenderPass() {
+void Impl::createRenderPass() {
     // Define a render pass (dummy example; modify as needed)
     VkAttachmentDescription colorAttachment = {};
     colorAttachment.format = VK_FORMAT_B8G8R8A8_UNORM; // The same format as the swapchain
@@ -411,7 +423,7 @@ void Renderer::createRenderPass() {
     renderPassInfo.subpassCount = 1;
     renderPassInfo.pSubpasses = &subpass;
 
-    VkResult res = vkCreateRenderPass(vk->device, &renderPassInfo, nullptr, &vk->renderPass);
+    VkResult res = vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass);
     if (res != VK_SUCCESS) {
         printf("Failed to create render pass: %s\n", getVulkanResultString(res));
         throw std::runtime_error("Failed to create render pass");
@@ -419,7 +431,7 @@ void Renderer::createRenderPass() {
     printf("Render pass created successfully\n");
 }
 
-void Renderer::createFramebuffer(int w, int h) {
+void Impl::createFramebuffer(int w, int h) {
     // Create framebuffer for the swapchain image
     VkImageView imageView; // You should create an image view based on swapchain images first
     // Ensure you correctly create and manage VkImageView resources, here’s a basic example to create a framebuffer
@@ -427,14 +439,14 @@ void Renderer::createFramebuffer(int w, int h) {
 
     VkFramebufferCreateInfo framebufferInfo = {};
     framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    framebufferInfo.renderPass = vk->renderPass; // Use the previously created render pass
+    framebufferInfo.renderPass = renderPass; // Use the previously created render pass
     framebufferInfo.attachmentCount = 1;
     framebufferInfo.pAttachments = &imageView; // Use the image view here (it must be valid)
     framebufferInfo.width = w; // Width of the swapchain image
     framebufferInfo.height = h; // Height of the swapchain image
     framebufferInfo.layers = 1;
 
-    VkResult res = vkCreateFramebuffer(vk->device, &framebufferInfo, nullptr, &vk->framebuffer);
+    VkResult res = vkCreateFramebuffer(device, &framebufferInfo, nullptr, &framebuffer);
     if (res != VK_SUCCESS) {
         printf("Failed to create framebuffer: %s\n", getVulkanResultString(res));
         throw std::runtime_error("Failed to create framebuffer");
@@ -442,23 +454,23 @@ void Renderer::createFramebuffer(int w, int h) {
     printf("Framebuffer created successfully\n");
 }
 
-void Renderer::createCmdBuffer() {
+void Impl::createCmdBuffer() {
   VkCommandPoolCreateInfo poolInfo{};
   poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
   poolInfo.queueFamilyIndex = 0; // Ensure this is the correct family index
   poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
-  if (vkCreateCommandPool(vk->device, &poolInfo, nullptr, &vk->commandPool) != VK_SUCCESS) {
+  if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
       throw std::runtime_error("failed to create command pool!");
   }
 
   VkCommandBufferAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  allocInfo.commandPool = vk->commandPool;
+  allocInfo.commandPool = commandPool;
   allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   allocInfo.commandBufferCount = 1;
 
-  if (vkAllocateCommandBuffers(vk->device, &allocInfo, &vk->commandBuffer) != VK_SUCCESS) {
+  if (vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer) != VK_SUCCESS) {
       throw std::runtime_error("failed to allocate command buffers!");
   }
 }
@@ -568,9 +580,9 @@ VkShaderModule createShaderModule(VkDevice device, const std::string& code) {
 }
 
 
-uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, vk_pimpl* vk) {
+uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, Impl* impl) {
     VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(vk->phys, &memProperties);
+    vkGetPhysicalDeviceMemoryProperties(impl->phys, &memProperties);
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
         if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
             return i; // Return the first suitable memory type
@@ -579,7 +591,7 @@ uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, v
     throw std::runtime_error("failed to find suitable memory type!");
 }
 
-void Renderer::createVertexBuffer() {
+void Impl::createVertexBuffer() {
     printf("VertexBuf createVertexBuffer\n");
 
     VkDeviceSize bufferSize = sizeof(quadVerts);
@@ -595,50 +607,50 @@ void Renderer::createVertexBuffer() {
     bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    VK_CHECK("vkCreateBuffer (staging)", vkCreateBuffer(vk->device, &bufferInfo, nullptr, &stagingBuffer));
+    VK_CHECK("vkCreateBuffer (staging)", vkCreateBuffer(device, &bufferInfo, nullptr, &stagingBuffer));
 
     VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(vk->device, stagingBuffer, &memRequirements);
+    vkGetBufferMemoryRequirements(device, stagingBuffer, &memRequirements);
 
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
     allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, 
                                                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
-                                                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, vk); // Host-visible
+                                                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, this); // Host-visible
 
-    VK_CHECK("vkAllocateMemory (staging)", vkAllocateMemory(vk->device, &allocInfo, nullptr, &stagingBufferMemory));
-    vkBindBufferMemory(vk->device, stagingBuffer, stagingBufferMemory, 0);
+    VK_CHECK("vkAllocateMemory (staging)", vkAllocateMemory(device, &allocInfo, nullptr, &stagingBufferMemory));
+    vkBindBufferMemory(device, stagingBuffer, stagingBufferMemory, 0);
 
     // Copy the vertex data to the staging buffer
     void* data;
-    VK_CHECK("vkMapMemory", vkMapMemory(vk->device, stagingBufferMemory, 0, bufferSize, 0, &data));
+    VK_CHECK("vkMapMemory", vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data));
     memcpy(data, quadVerts, (size_t)bufferSize);
-    vkUnmapMemory(vk->device, stagingBufferMemory);
+    vkUnmapMemory(device, stagingBufferMemory);
 
     // Create the vertex buffer
     bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    VK_CHECK("vkCreateBuffer (vertex)", vkCreateBuffer(vk->device, &bufferInfo, nullptr, &vk->vertexBuffer));
+    VK_CHECK("vkCreateBuffer (vertex)", vkCreateBuffer(device, &bufferInfo, nullptr, &vertexBuffer));
 
-    vkGetBufferMemoryRequirements(vk->device, vk->vertexBuffer, &memRequirements);
+    vkGetBufferMemoryRequirements(device, vertexBuffer, &memRequirements);
     allocInfo.allocationSize = memRequirements.size;
     allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, 
-                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vk); // Use device-local memory
+                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, this); // Use device-local memory
 
-    VK_CHECK("vkAllocateMemory (vertex)", vkAllocateMemory(vk->device, &allocInfo, nullptr, &vk->vertexBufferMemory));
-    vkBindBufferMemory(vk->device, vk->vertexBuffer, vk->vertexBufferMemory, 0);
+    VK_CHECK("vkAllocateMemory (vertex)", vkAllocateMemory(device, &allocInfo, nullptr, &vertexBufferMemory));
+    vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0);
 
     // Copy the data from the staging buffer to the vertex buffer
-    vkCopyBuffer(vk->device, stagingBuffer, vk->vertexBuffer, vk->queue, vk->commandPool);
+    vkCopyBuffer(device, stagingBuffer, vertexBuffer, queue, commandPool);
 
     // Cleanup the staging buffer and memory
-    vkDestroyBuffer(vk->device, stagingBuffer, nullptr);
-    vkFreeMemory(vk->device, stagingBufferMemory, nullptr);
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
 
     printf("VertexBuf created successfully\n");
 }
 
-void Renderer::createGraphicsPipeline() {
+void Impl::createGraphicsPipeline() {
   const std::string vertex_shader = "#version 450\
 \
 layout(location = 0) in vec2 inPosition;\
@@ -662,8 +674,8 @@ void main() {\
 }\
 ";
 
-    VkShaderModule vertShaderModule = createShaderModule(vk->device, vertex_shader);
-    VkShaderModule fragShaderModule = createShaderModule(vk->device, fragment_shader);
+    VkShaderModule vertShaderModule = createShaderModule(device, vertex_shader);
+    VkShaderModule fragShaderModule = createShaderModule(device, fragment_shader);
 
     VkPipelineShaderStageCreateInfo vertStageInfo = {};
     vertStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -754,7 +766,7 @@ void main() {\
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 0; // No descriptor sets for this example
 
-    VkResult res = vkCreatePipelineLayout(vk->device, &pipelineLayoutInfo, nullptr, &pipelineLayout);
+    VkResult res = vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout);
     if (res != VK_SUCCESS) {
         printf("Failed to create pipeline layout: %s\n", getVulkanResultString(res));
         throw std::runtime_error("Failed to create pipeline layout");
@@ -772,10 +784,10 @@ void main() {\
     pipelineInfo.pMultisampleState = &multisampling;
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.layout = pipelineLayout;
-    pipelineInfo.renderPass = vk->renderPass; // Use the render pass created earlier
+    pipelineInfo.renderPass = renderPass; // Use the render pass created earlier
     pipelineInfo.subpass = 0; // Use the first subpass
 
-    res = vkCreateGraphicsPipelines(vk->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vk->graphicsPipeline);
+    res = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline);
     if (res != VK_SUCCESS) {
         printf("Failed to create graphics pipeline: %s\n", getVulkanResultString(res));
         throw std::runtime_error("Failed to create graphics pipeline");
@@ -784,38 +796,37 @@ void main() {\
     printf("Graphics pipeline created successfully\n");
 
     // Cleanup shader modules after pipeline creation
-    vkDestroyShaderModule(vk->device, vertShaderModule, nullptr);
-    vkDestroyShaderModule(vk->device, fragShaderModule, nullptr);
+    vkDestroyShaderModule(device, vertShaderModule, nullptr);
+    vkDestroyShaderModule(device, fragShaderModule, nullptr);
 }
 
 Renderer::~Renderer() {
     // Clean up resources
-    if (vk->framebuffer != VK_NULL_HANDLE) {
-        vkDestroyFramebuffer(vk->device, vk->framebuffer, nullptr);
+    if (impl->framebuffer != VK_NULL_HANDLE) {
+        vkDestroyFramebuffer(impl->device, impl->framebuffer, nullptr);
     }
-    if (vk->renderPass != VK_NULL_HANDLE) {
-        vkDestroyRenderPass(vk->device, vk->renderPass, nullptr);
+    if (impl->renderPass != VK_NULL_HANDLE) {
+        vkDestroyRenderPass(impl->device, impl->renderPass, nullptr);
     }
-    if (vk->swapchain != VK_NULL_HANDLE) {
-        vkDestroySwapchainKHR(vk->device, vk->swapchain, nullptr);
+    if (impl->swapchain != VK_NULL_HANDLE) {
+        vkDestroySwapchainKHR(impl->device, impl->swapchain, nullptr);
     }
-    if (vk->device != VK_NULL_HANDLE) {
-        vkDestroyDevice(vk->device, nullptr);
+    if (impl->device != VK_NULL_HANDLE) {
+        vkDestroyDevice(impl->device, nullptr);
     }
-    if (vk->surface != VK_NULL_HANDLE) {
-        vkDestroySurfaceKHR(vk->instance, vk->surface, nullptr);
+    if (impl->surface != VK_NULL_HANDLE) {
+        vkDestroySurfaceKHR(impl->instance, impl->surface, nullptr);
     }
-    if (vk->instance != VK_NULL_HANDLE) {
-        vkDestroyInstance(vk->instance, nullptr);
+    if (impl->instance != VK_NULL_HANDLE) {
+        vkDestroyInstance(impl->instance, nullptr);
     }
-    // if (vk->commandBuffer != VK_NULL_HANDLE) {
-    //     vkDestroyCommandBuffer(vk->commandBuffer, nullptr);
+    // if (impl->commandBuffer != VK_NULL_HANDLE) {
+    //     vkDestroyCommandBuffer(impl->commandBuffer, nullptr);
     // }
-    // if (vk->commandPool != VK_NULL_HANDLE) {
-    //     vkDestroyCommandPool(vk->commandPool, nullptr);
+    // if (impl->commandPool != VK_NULL_HANDLE) {
+    //     vkDestroyCommandPool(impl->commandPool, nullptr);
     // }
-    delete vk;
-    vk = nullptr;
+    impl = nullptr;
 }
 
 
@@ -824,7 +835,7 @@ Renderer::~Renderer() {
 void Renderer::drawFrame() {
     // Step 1: Acquire the next image from the swapchain
     uint32_t imageIndex;
-    VkResult result = vkAcquireNextImageKHR(vk->device, vk->swapchain, UINT64_MAX,
+    VkResult result = vkAcquireNextImageKHR(impl->device, impl->swapchain, UINT64_MAX,
                                              VK_NULL_HANDLE, VK_NULL_HANDLE, &imageIndex);
     
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -837,7 +848,7 @@ void Renderer::drawFrame() {
 
     // Step 2: Begin recording commands into the command buffer
     // Start command buffer recording
-    result = vkBeginCommandBuffer(vk->commandBuffer, nullptr);
+    result = vkBeginCommandBuffer(impl->commandBuffer, nullptr);
     if (result != VK_SUCCESS) {
         printf("Failed to begin recording command buffer.\n");
         VK_CHECK( "vkBeginCommandBuffer", result )
@@ -848,24 +859,24 @@ void Renderer::drawFrame() {
     VkViewport viewport = {};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = static_cast<float>(vk->swapchainExtent.width); // Use the swapchain extent
-    viewport.height = static_cast<float>(vk->swapchainExtent.height); // Use the swapchain extent
+    viewport.width = static_cast<float>(impl->swapchainExtent.width); // Use the swapchain extent
+    viewport.height = static_cast<float>(impl->swapchainExtent.height); // Use the swapchain extent
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
-    vkCmdSetViewport(vk->commandBuffer, 0, 1, &viewport);
+    vkCmdSetViewport(impl->commandBuffer, 0, 1, &viewport);
 
     VkRect2D scissor = {};
     scissor.offset = { 0, 0 };
-    scissor.extent = vk->swapchainExtent; // Match the swapchain image size
-    vkCmdSetScissor(vk->commandBuffer, 0, 1, &scissor);
+    scissor.extent = impl->swapchainExtent; // Match the swapchain image size
+    vkCmdSetScissor(impl->commandBuffer, 0, 1, &scissor);
 
     // Step 4: Set up render pass info
     VkRenderPassBeginInfo renderPassBeginInfo = {};
     renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassBeginInfo.renderPass = vk->renderPass; // Ensure this is initialized
-    renderPassBeginInfo.framebuffer = vk->framebuffer; // You need to have a valid framebuffer
-    renderPassBeginInfo.renderArea = { { 0, 0 }, vk->swapchainExtent }; // Use swapchain extent
+    renderPassBeginInfo.renderPass = impl->renderPass; // Ensure this is initialized
+    renderPassBeginInfo.framebuffer = impl->framebuffer; // You need to have a valid framebuffer
+    renderPassBeginInfo.renderArea = { { 0, 0 }, impl->swapchainExtent }; // Use swapchain extent
 
     // Clear values for the render pass
     VkClearValue clearColor = {};
@@ -878,23 +889,23 @@ void Renderer::drawFrame() {
     renderPassBeginInfo.pClearValues = &clearColor;
 
     // Step 5: Begin the render pass
-    vkCmdBeginRenderPass(vk->commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(impl->commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     // Step 6: Bind your graphics pipeline
-    vkCmdBindPipeline(vk->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->graphicsPipeline); // Ensure this is initialized
+    vkCmdBindPipeline(impl->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, impl->graphicsPipeline); // Ensure this is initialized
     
     // Step 7: Bind vertex buffer
     VkDeviceSize offsets[] = { 0 }; // Offset for the first vertex buffer
-    vkCmdBindVertexBuffers(vk->commandBuffer, 0, 1, &vk->vertexBuffer, offsets);
+    vkCmdBindVertexBuffers(impl->commandBuffer, 0, 1, &impl->vertexBuffer, offsets);
 
     // Step 8: Draw your vertices
-    vkCmdDraw(vk->commandBuffer, 6, 1, 0, 0); // Example for drawing the quad
+    vkCmdDraw(impl->commandBuffer, 6, 1, 0, 0); // Example for drawing the quad
 
     // Step 9: End the render pass
-    vkCmdEndRenderPass(vk->commandBuffer);
+    vkCmdEndRenderPass(impl->commandBuffer);
 
     // Step 10: Stop recording
-    if (vkEndCommandBuffer(vk->commandBuffer) != VK_SUCCESS) {
+    if (vkEndCommandBuffer(impl->commandBuffer) != VK_SUCCESS) {
         printf("Failed to record command buffer.\n");
         return;
     }
@@ -903,9 +914,9 @@ void Renderer::drawFrame() {
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &vk->commandBuffer;
+    submitInfo.pCommandBuffers = &impl->commandBuffer;
 
-    result = vkQueueSubmit(vk->queue, 1, &submitInfo, VK_NULL_HANDLE);
+    result = vkQueueSubmit(impl->queue, 1, &submitInfo, VK_NULL_HANDLE);
     if (result != VK_SUCCESS) {
         printf("Failed to submit draw command buffer: %d\n", result);
         return;
@@ -915,10 +926,10 @@ void Renderer::drawFrame() {
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = &vk->swapchain;
+    presentInfo.pSwapchains = &impl->swapchain;
     presentInfo.pImageIndices = &imageIndex;
 
-    result = vkQueuePresentKHR(vk->queue, &presentInfo);
+    result = vkQueuePresentKHR(impl->queue, &presentInfo);
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         printf("Swapchain out of date during presentation. Need to recreate.\n");
     } else if (result != VK_SUCCESS) {

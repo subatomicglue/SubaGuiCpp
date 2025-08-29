@@ -5,10 +5,16 @@ if(APPLE)
     find_library(COCOA_FRAMEWORK Cocoa)
 endif()
 
+
+target_compile_definitions(core PUBLIC USE_VULKAN)
+target_compile_definitions(core PUBLIC USE_OPENGL)
+
+
 set(SOURCE_FILES
-    window_cocoa.mm
-    vk_surface_from_native.mm
-    vk_surface_from_native.cpp
+    PlatformWindow_cocoa.mm
+#    vk_surface_from_native.mm
+#    vk_surface_from_native.cpp
+    NativeParent_gl.mm
 )
 add_library(platform STATIC
     ${SOURCE_FILES}
