@@ -11,6 +11,8 @@ typedef struct objc_object NSView;
 typedef struct objc_object NSAutoreleasePool;
 #endif
 
+#include "Events.h"
+
 class NativeParent;
 
 /// Simple wrapper for an NSWindow + view, for use with Vulkan (MoltenVK)
@@ -27,4 +29,7 @@ struct PlatformWindow {
     void poll();
     bool shouldClose();
     void* nsView();  // returns NSView* as opaque void* for Vulkan surface creation
+
+public:
+    EventPubSubMixin pubsub;
 };

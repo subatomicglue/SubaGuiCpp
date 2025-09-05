@@ -1,0 +1,47 @@
+if (USE_VULKAN)
+    find_package(VulkanLoader REQUIRED)
+    find_package(VulkanHeaders REQUIRED)
+    if(APPLE)
+        find_package(moltenvk REQUIRED)
+    endif()
+endif()
+if (USE_OPENGL)
+    find_package(OpenGL REQUIRED)
+endif()
+if(APPLE)
+    find_library(COCOA_FRAMEWORK Cocoa)
+endif()
+
+set(SOURCE_FILES guikit.h guikit.cpp)
+
+add_library(guikit STATIC
+    ${SOURCE_FILES}
+)
+
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}")
+find_package(PNG REQUIRED)
+find_package(nlohmann_json REQUIRED)
+
+# debug
+#foreach(file ${SOURCE_FILES})
+#    set_source_files_properties(${file} PROPERTIES COMPILE_FLAGS "-g")
+#endforeach()
+target_include_directories(guikit PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(guikit PUBLIC core)
+target_include_directories(guikit PRIVATE ../../src/platform)
+target_include_directories(guikit PRIVATE ../../src/core)
+target_include_directories(guikit PRIVATE ../../src/gui)
+target_include_directories(guikit PRIVATE ${CONAN_MOLTENVK_INCLUDE_DIRS})
+target_link_libraries(guikit PUBLIC nlohmann_json::nlohmann_json)
+target_link_libraries(guikit PUBLIC PNG::PNG)
+
+if (USE_VULKAN)
+    target_link_libraries(guikit PRIVATE Vulkan::Headers Vulkan::Loader )
+    if(APPLE)
+        target_link_libraries(guikit PUBLIC moltenvk::moltenvk ${COCOA_FRAMEWORK})
+    endif()
+endif()
+if (USE_OPENGL)
+    target_compile_definitions(guikit PRIVATE GL_SILENCE_DEPRECATION)
+    target_link_libraries(guikit PRIVATE OpenGL::GL ${COCOA_FRAMEWORK})
+endif()

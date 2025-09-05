@@ -19,5 +19,6 @@ endif()
 
 add_subdirectory(src/core)
 add_subdirectory(src/platform)
+add_subdirectory(src/gui)
 add_subdirectory(examples/standalone_app)
 

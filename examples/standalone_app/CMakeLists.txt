@@ -8,7 +8,9 @@ foreach(file ${SOURCE_FILES})
     set_source_files_properties(${file} PROPERTIES COMPILE_FLAGS "-g")
 endforeach()
 
+# Vulkan!
 if (USE_VULKAN)
+    # ---------------------------find library/package---------------------------
     find_package(VulkanLoader REQUIRED)
     find_package(VulkanHeaders REQUIRED)
     if(APPLE)
@@ -36,27 +38,27 @@ if (USE_VULKAN)
             message(WARNING "MoltenVK library not found!")
         endif()
     endif()
+
+    # ---------------------------include + link---------------------------
+    target_link_libraries(standalone_app PRIVATE Vulkan::Headers)
+    target_link_libraries(standalone_app PRIVATE Vulkan::Loader)
+    if(APPLE)
+        target_include_directories(standalone_app PRIVATE ${CONAN_MOLTENVK_INCLUDE_DIRS})
+        target_link_libraries(standalone_app PRIVATE moltenvk::moltenvk ${COCOA_FRAMEWORK})
+    endif()
 endif()
+
 
 list(APPEND CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}")
 find_package(PNG REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
-
 # Link against core and platform
 target_include_directories(standalone_app PRIVATE ../../src/platform)
 target_include_directories(standalone_app PRIVATE ../../src/core)
-target_include_directories(standalone_app PRIVATE ${CONAN_MOLTENVK_INCLUDE_DIRS})
-target_link_libraries(standalone_app PRIVATE core platform)
-target_link_libraries(standalone_app PRIVATE nlohmann_json::nlohmann_json)
-target_link_libraries(standalone_app PUBLIC PNG::PNG)
-
-
-if (USE_VULKAN)
-    target_link_libraries(standalone_app PRIVATE Vulkan::Headers)
-    target_link_libraries(standalone_app PRIVATE Vulkan::Loader)
-    if(APPLE)
-        target_link_libraries(standalone_app PRIVATE moltenvk::moltenvk ${COCOA_FRAMEWORK})
-    endif()
-endif()
-
+target_include_directories(standalone_app PRIVATE ../../src/gui)
+# target_link_libraries(standalone_app PRIVATE core)
+# target_link_libraries(standalone_app PRIVATE platform)
+target_link_libraries(standalone_app PRIVATE guikit)
+# target_link_libraries(standalone_app PRIVATE nlohmann_json::nlohmann_json)
+# target_link_libraries(standalone_app PRIVATE PNG::PNG)
