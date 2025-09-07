@@ -1,7 +1,12 @@
 
-# Subatomic Gui - 2d graphics for audio apps and plugins
+# Subatomic Sonic Device
 
-a lean, C++17, 2D windows + quad-and-texture graphics layer for audio synthesizer GUIs (knobs, lights, buttons, text), audio plugins (like vst, au, clap), and audio devices with touchscreens (raspberry pi):
+Framework for building sonic devices running as VST, AU, CLAP, standalone.
+C++ toolkit for audio instruments and effects, framework providing audio plugins & standalone, with GUI and input.
+
+## Details
+
+A lean, C++17, 2D windows + quad-and-texture graphics layer for audio synthesizer GUIs (knobs, lights, buttons, text), audio plugins (like vst, au, clap), and audio devices with touchscreens (raspberry pi):
 
  - standalone (opens its own window)
  - inside VST3, AU (macOS), and CLAP plugin editors
