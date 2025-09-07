@@ -11,24 +11,27 @@ a lean, C++17, 2D windows + quad-and-texture graphics layer for audio synthesize
 
 ## tech stack
 
- - **Vulkan 1.2** everywhere.
-   - **macOS** via **MoltenVK** (Vulkan over Metal).
-   - **Windows/Linux/Raspberry Pi** with the standard Vulkan loader/ICD.
- - **No giant windowing framework.**
-   - We implement tiny native windows for Win32 and Cocoa.
-   - For Linux/RPi you can pick: X11 (tiny Xlib shim) *or* Wayland; to start quickly, an optional **GLFW** path for standalone only (not in plugins) is fine.
- - **Single draw primitive**: batched textured quads.
- - **Dependencies (small)**: Vulkan SDK (loader + headers), **stb_image.h** (textures), optional **volk** (Vulkan function loader), optional **VMA** (allocator). Shaders precompiled to SPIR-V at build time (glslangValidator or shaderc), so no runtime compiler dependency.
+ - Swappable Renderers
+   - **OpenGL ES 2**   (status: works)
+   - **Vulkan 1.2**    (status: compiles, doesn't run)
+     - **macOS** via **MoltenVK** (Vulkan over Metal).
+     - **Windows/Linux/Raspberry Pi** with the standard Vulkan loader/ICD.
+     - **Dependencies (small)**: Vulkan SDK (loader + headers), **stb_image.h** (textures), optional **volk** (Vulkan function loader), optional **VMA** (allocator). Shaders precompiled to SPIR-V at build time (glslangValidator or shaderc), so no runtime compiler dependency.
+   - **Single draw primitive**: batched textured quads.
+ - Windows
+   - We implement tiny native windows for
+     - Win32 (**status:**  not started)
+     - Cocoa (**status:**  works)
+     - X11 (**status:**  not started)
+ - Widgets
+   - Layout and definition in JSON configuration
+
 
 ## project layout
 
 ```
-/gfxkit
+/
   /cmake/
-  /external/
-    stb/
-    volk/         (optional)
-    VMA/          (optional)
   /src/
     /core/        (platform-agnostic)
       device.hpp, device.cpp
@@ -43,6 +46,7 @@ a lean, C++17, 2D windows + quad-and-texture graphics layer for audio synthesize
       /cocoa/ window_cocoa.mm            // Standalone NSWindow + CAMetalLayer-backed VkSurface via MVK
       /x11/   window_x11.cpp             // or wayland/ if preferred
       vk_surface_from_native.hpp/.cpp    // (HWND, NSView*, X11 Window) -> VkSurfaceKHR
+    /guikit/
     /plugin/
       /vst3/
         CMakeLists.txt
