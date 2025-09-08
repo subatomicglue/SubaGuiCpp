@@ -1,6 +1,10 @@
 
 # Subatomic Sonic Device
 
+Subatomic Sonographic Device - virtual audio device for standalone and plugins
+
+![logo](logo.png)
+
 Framework for building sonic devices running as VST, AU, CLAP, standalone.
 C++ toolkit for audio instruments and effects, framework providing audio plugins & standalone, with GUI and input.
 
